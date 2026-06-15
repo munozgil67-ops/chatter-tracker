@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chatter Tracker</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a1a;min-height:100vh;}
+.header{background:#fff;border-bottom:1px solid #e5e5e5;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;}
+.header-title{font-size:15px;font-weight:600;}
+.sync-badge{font-size:11px;color:#888;display:flex;align-items:center;gap:5px;}
+.dot-live{width:7px;height:7px;border-radius:50%;background:#22c55e;}
+.nav{display:flex;gap:4px;padding:12px 16px;background:#f5f5f3;overflow-x:auto;}
+.nav-btn{padding:7px 14px;font-size:13px;font-weight:500;border-radius:20px;border:1px solid #e0e0e0;background:#fff;cursor:pointer;color:#555;white-space:nowrap;}
+.nav-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+.view{display:none;padding:16px;}
+.view.active{display:block;}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;}
+.stat{background:#fff;border-radius:12px;padding:14px;border:1px solid #e8e8e8;}
+.stat-label{font-size:11px;color:#888;margin-bottom:4px;}
+.stat-val{font-size:22px;font-weight:600;color:#1a1a1a;}
+.stat-sub{font-size:11px;color:#aaa;margin-top:2px;}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;border:1px solid #e8e8e8;}
+.card-title{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:12px;}
+.row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f0f0f0;gap:8px;}
+.row:last-child{border-bottom:none;}
+.row-label{font-size:13px;color:#666;}
+.row-val{font-size:13px;font-weight:600;color:#1a1a1a;}
+.tier-pill{display:inline-block;font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;letter-spacing:0.03em;}
+.tier-bronze{background:#f0ece4;color:#7a6a50;}
+.tier-silver{background:#ddeeff;color:#1a5fa5;}
+.tier-gold{background:#fff3d6;color:#8a5e00;}
+.tier-elite{background:#d6f0d6;color:#1a6e1a;}
+.progress-wrap{margin-bottom:14px;}
+.progress-meta{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;}
+.progress-label{color:#666;}
+.progress-status{font-weight:600;}
+.progress-bar{height:7px;background:#f0f0f0;border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:4px;transition:width 0.4s ease;}
+.avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.chatter-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.lb-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #f0f0f0;}
+.lb-row:last-child{border-bottom:none;}
+.lb-rank{font-size:20px;font-weight:700;width:28px;color:#ccc;}
+.lb-rank.first{color:#f0a500;}
+.lb-info{flex:1;}
+.lb-name{font-size:14px;font-weight:600;}
+.lb-sub{font-size:12px;color:#888;margin-top:1px;}
+.lb-pts{font-size:15px;font-weight:700;}
+.qual-pill{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:6px;}
+.qual-yes{background:#d6f0d6;color:#1a6e1a;}
+.qual-no{background:#ffe0e0;color:#c0392b;}
+.team-prog{background:#f8f8f8;border-radius:10px;padding:14px;margin-top:8px;}
+.loading{text-align:center;padding:40px;color:#aaa;font-size:14px;}
+.error-msg{background:#ffe0e0;color:#c0392b;border-radius:10px;padding:14px;font-size:13px;margin-bottom:12px;}
+.refresh-btn{background:#1a1a1a;color:#fff;border:none;border-radius:20px;padding:7px 16px;font-size:13px;cursor:pointer;}
+.day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:4px;}
+.day-cell{border-radius:8px;padding:8px 4px;text-align:center;border:1px solid #f0f0f0;background:#fafafa;}
+.day-cell.has-data{border:1px solid #e0e0e0;}
+.day-name{font-size:9px;color:#aaa;margin-bottom:3px;}
+.day-val{font-size:10px;font-weight:600;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-title">Chatter Tracker</span>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="sync-badge"><span class="dot-live"></span><span id="sync-time">Loading...</span></span>
+    <button class="refresh-btn" onclick="loadData()">Refresh</button>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="switchView('overview',this)">Overview</button>
+  <button class="nav-btn" onclick="switchView('ebok',this)">Ebok</button>
+  <button class="nav-btn" onclick="switchView('jericho',this)">Jericho</button>
+  <button class="nav-btn" onclick="switchView('leaderboard',this)">Leaderboard</button>
+  <button class="nav-btn owner-only" onclick="switchView('owner',this)">My Earnings</button>
+</div>
+
+<div id="view-overview" class="view active"><div class="loading">Loading data...</div></div>
+<div id="view-ebok" class="view"><div class="loading">Loading data...</div></div>
+<div id="view-jericho" class="view"><div class="loading">Loading data...</div></div>
+<div id="view-leaderboard" class="view"><div class="loading">Loading data...</div></div>
+<div id="view-owner" class="view"><div class="loading">Loading data...</div></div>
+
+<script>
+const API_KEY='AIzaSyDPtrts308VkcJ1O8mxuKE6GmB2x4awwe4';
+const SHEET_ID='1o7t0iLnhTOgpDWz0wAY53F84kzv_EBdZKeMU6cRpZZE';
+const PHP=57;
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const IS_OWNER=window.location.hash==='#owner';
+
+if(!IS_OWNER){
+  document.querySelector('.owner-only').style.display='none';
+}
+
+function getTier(gross){
+  if(gross>=2500)return{key:'elite',label:'Elite',name:'Beast',bonus:8,cls:'tier-elite',color:'#22c55e'};
+  if(gross>=1875)return{key:'gold',label:'Gold',name:'Hunter',bonus:5,cls:'tier-gold',color:'#f0a500'};
+  if(gross>=1250)return{key:'silver',label:'Silver',name:'Closer',bonus:3,cls:'tier-silver',color:'#3b82f6'};
+  if(gross>=1000)return{key:'bronze',label:'Bronze',name:'Grinder',bonus:0,cls:'tier-bronze',color:'#aaa'};
+  return null;
+}
+
+function calcDay(gross,hours=8){
+  const net=gross*0.8;
+  const tier=getTier(gross);
+  const commission=gross>=1000?net*0.01:0;
+  const hourly=hours*2;
+  const cashBonus=tier?tier.bonus:0;
+  const theirPay=hourly+commission+cashBonus;
+  const yourRev=net*0.07;
+  const yourNet=yourRev-theirPay;
+  return{net,tier,commission,hourly,cashBonus,theirPay,yourRev,yourNet};
+}
+
+let DATA={ebok:{},jericho:{}};
+
+async function fetchSheet(range){
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+  const r=await fetch(url);
+  if(!r.ok)throw new Error('Sheet fetch failed: '+r.status);
+  const d=await r.json();
+  return d.values||[];
+}
+
+function parseGross(str){
+  if(!str||str==='–'||str==='-')return 0;
+  return parseFloat(str.replace(/[$,]/g,''))||0;
+}
+
+async function loadData(){
+  try{
+    document.querySelectorAll('.view').forEach(v=>v.innerHTML='<div class="loading">Syncing with Google Sheets...</div>');
+    
+    const [ebokByDay,jerichoByDay,combined]=await Promise.all([
+      fetchSheet('Ebok!H2:I8'),
+      fetchSheet('Jericho!H2:I8'),
+      fetchSheet('Combined!A2:G9')
+    ]);
+
+    DATA={ebok:{},jericho:{}};
+    
+    DAYS.forEach((day,i)=>{
+      const er=ebokByDay[i]||[];
+      const jr=jerichoByDay[i]||[];
+      const eg=parseGross(er[0]);
+      const jg=parseGross(jr[0]);
+      if(eg>0)DATA.ebok[day]={gross:eg,net:eg*0.8};
+      if(jg>0)DATA.jericho[day]={gross:jg,net:jg*0.8};
+    });
+
+    document.getElementById('sync-time').textContent='Synced '+new Date().toLocaleTimeString();
+    renderAll();
+  }catch(e){
+    document.querySelectorAll('.view').forEach(v=>{
+      v.innerHTML=`<div class="error-msg">Could not load data: ${e.message}<br><br>Make sure your Google Sheet is shared with your Google account.</div>`;
+    });
+    document.getElementById('sync-time').textContent='Sync failed';
+  }
+}
+
+function getChatterWeek(chatter){
+  return DAYS.map(d=>({day:d,data:DATA[chatter][d]||null}));
+}
+
+function renderProgress(label,current,target,bonus,color){
+  const pct=Math.min(100,Math.round((current/target)*100));
+  const hit=current>=target;
+  return`<div class="progress-wrap">
+    <div class="progress-meta">
+      <span class="progress-label">${label} — $${target.toLocaleString()} net</span>
+      <span class="progress-status" style="color:${hit?'#22c55e':'#1a1a1a'}">${hit?'+$'+bonus+' unlocked!':'$'+Math.round(current).toLocaleString()+' / $'+target.toLocaleString()}</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${hit?'#22c55e':color};"></div></div>
+  </div>`;
+}
+
+function renderOverview(){
+  const ew=getChatterWeek('ebok');
+  const jw=getChatterWeek('jericho');
+  const eg=ew.reduce((s,d)=>s+(d.data?d.data.gross:0),0);
+  const jg=jw.reduce((s,d)=>s+(d.data?d.data.gross:0),0);
+  const cg=eg+jg;
+  const cn=cg*0.8;
+  const eCalcs=ew.filter(d=>d.data).map(d=>calcDay(d.data.gross));
+  const jCalcs=jw.filter(d=>d.data).map(d=>calcDay(d.data.gross));
+  const allCalcs=[...eCalcs,...jCalcs];
+  const rev=allCalcs.reduce((s,c)=>s+c.yourRev,0);
+  const pay=allCalcs.reduce((s,c)=>s+c.theirPay,0);
+  const net=rev-pay;
+
+  document.getElementById('view-overview').innerHTML=`
+    <div class="stat-grid">
+      <div class="stat"><p class="stat-label">Combined gross</p><p class="stat-val">$${Math.round(cg).toLocaleString()}</p><p class="stat-sub">This week</p></div>
+      <div class="stat"><p class="stat-label">Combined net</p><p class="stat-val">$${Math.round(cn).toLocaleString()}</p><p class="stat-sub">This week</p></div>
+      ${IS_OWNER?`<div class="stat"><p class="stat-label">Your revenue</p><p class="stat-val">$${Math.round(rev)}</p><p class="stat-sub">7% of net sales</p></div>
+      <div class="stat"><p class="stat-label">Your net</p><p class="stat-val">$${Math.round(net)}</p><p class="stat-sub">₱${Math.round(net*PHP).toLocaleString()}</p></div>`:''}
+    </div>
+    <div class="card">
+      <p class="card-title">This week by day</p>
+      <div class="day-grid">${DAYS.map(d=>{
+        const ed=DATA.ebok[d];const jd=DATA.jericho[d];
+        const cg=(ed?ed.gross:0)+(jd?jd.gross:0);
+        const hasData=ed||jd;const t=hasData&&cg>0?getTier(cg/2):null;
+        const styles=t?`background:${t.color}15;border-color:${t.color}40;`:'';
+        return`<div class="day-cell ${hasData?'has-data':''}" style="${styles}">
+          <p class="day-name">${d.slice(0,3)}</p>
+          <p class="day-val" style="${t?`color:${t.color}`:''}">${hasData&&cg>0?'$'+Math.round(cg).toLocaleString():'—'}</p>
+        </div>`;
+      }).join('')}</div>
+    </div>
+    <div class="card">
+      <p class="card-title">Chatter snapshot</p>
+      <div class="row"><span class="row-label">Ebok — $${Math.round(eg).toLocaleString()} gross</span><span class="row-val">${eCalcs.length?getTier(eg/eCalcs.length)?'<span class="tier-pill '+getTier(eg/eCalcs.length).cls+'">'+getTier(eg/eCalcs.length).label+' avg</span>':'—':'No data'}</span></div>
+      <div class="row"><span class="row-label">Jericho — $${Math.round(jg).toLocaleString()} gross</span><span class="row-val">${jCalcs.length?getTier(jg/jCalcs.length)?'<span class="tier-pill '+getTier(jg/jCalcs.length).cls+'">'+getTier(jg/jCalcs.length).label+' avg</span>':'—':'No data'}</span></div>
+    </div>
+  `;
+}
+
+function renderChatter(chatter){
+  const isEbok=chatter==='ebok';
+  const name=isEbok?'Ebok':'Jericho';
+  const initials=isEbok?'EB':'JR';
+  const avatarBg=isEbok?'#ddeeff':'#fff3d6';
+  const avatarColor=isEbok?'#1a5fa5':'#8a5e00';
+  const week=getChatterWeek(chatter);
+  const active=week.filter(d=>d.data);
+  const wGross=active.reduce((s,d)=>s+d.data.gross,0);
+  const wNet=wGross*0.8;
+  const calcs=active.map(d=>({day:d.day,...calcDay(d.data.gross)}));
+  const latestDay=active[active.length-1];
+  const latestTier=latestDay?getTier(latestDay.data.gross):null;
+  const dailyCash=calcs.reduce((s,c)=>s+c.cashBonus,0);
+  const commission=calcs.reduce((s,c)=>s+c.commission,0);
+  const hourly=calcs.reduce((s,c)=>s+c.hourly,0);
+  const totalPay=calcs.reduce((s,c)=>s+c.theirPay,0);
+  const wRev=calcs.reduce((s,c)=>s+c.yourRev,0);
+  const wYours=calcs.reduce((s,c)=>s+c.yourNet,0);
+
+  const targets=[{label:'Silver week',target:7000,bonus:30,color:'#3b82f6'},{label:'Gold week',target:10500,bonus:50,color:'#f0a500'},{label:'Elite week',target:14000,bonus:75,color:'#22c55e'}];
+  const hitTargets=targets.filter(t=>wNet>=t.target);
+  const topTarget=hitTargets[hitTargets.length-1];
+
+  const bonuses=[];
+  if(topTarget)bonuses.push({label:topTarget.label+' bonus',val:'+$'+topTarget.bonus,color:'#22c55e'});
+  if(dailyCash>0)bonuses.push({label:'Daily cash bonuses',val:'+$'+dailyCash,color:'#22c55e'});
+  if(commission>0)bonuses.push({label:'1% net commission',val:'+$'+commission.toFixed(2),color:'#22c55e'});
+  bonuses.push({label:'Base hourly pay',val:'$'+hourly.toFixed(0),color:'#1a1a1a'});
+  bonuses.push({label:'Total earnings this week',val:'$'+totalPay.toFixed(2),color:'#1a1a1a'});
+
+  document.getElementById('view-'+chatter).innerHTML=`
+    <div class="chatter-header">
+      <div class="avatar" style="background:${avatarBg};color:${avatarColor};">${initials}</div>
+      <div style="flex:1;">
+        <p style="font-size:16px;font-weight:700;">${name}</p>
+        <p style="font-size:12px;color:#888;">${latestTier?latestTier.label+' — '+latestTier.name+' (latest day)':'No data yet'}</p>
+      </div>
+      ${latestTier?`<span class="tier-pill ${latestTier.cls}">${latestTier.label}</span>`:''}
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><p class="stat-label">Week gross</p><p class="stat-val">$${Math.round(wGross).toLocaleString()}</p></div>
+      <div class="stat"><p class="stat-label">Week net</p><p class="stat-val">$${Math.round(wNet).toLocaleString()}</p></div>
+      <div class="stat"><p class="stat-label">Avg gross/day</p><p class="stat-val">$${active.length?Math.round(wGross/active.length).toLocaleString():'—'}</p></div>
+      <div class="stat"><p class="stat-label">Days logged</p><p class="stat-val">${active.length}</p></div>
+    </div>
+    <div class="card">
+      <p class="card-title">Weekly bonus progress</p>
+      ${targets.map(t=>renderProgress(t.label,wNet,t.target,t.bonus,t.color)).join('')}
+    </div>
+    <div class="card">
+      <p class="card-title">Day breakdown</p>
+      ${active.length?active.map(d=>{
+        const c=calcDay(d.data.gross);const t=c.tier;
+        return`<div class="row">
+          <span class="row-label">${d.day}</span>
+          ${t?`<span class="tier-pill ${t.cls}">${t.label}</span>`:'<span style="font-size:11px;color:#ccc;">Below floor</span>'}
+          <span class="row-val">$${Math.round(d.data.gross).toLocaleString()}</span>
+          <span style="font-size:12px;color:#22c55e;">${c.cashBonus>0?'+$'+c.cashBonus+' bonus':''}</span>
+        </div>`;
+      }).join(''):'<p style="font-size:13px;color:#aaa;padding:8px 0;">No days logged yet.</p>'}
+    </div>
+    <div class="card">
+      <p class="card-title">Earnings breakdown this week</p>
+      ${bonuses.map(b=>`<div class="row"><span class="row-label">${b.label}</span><span class="row-val" style="color:${b.color};">${b.val}</span></div>`).join('')}
+    </div>
+    ${IS_OWNER?`<div class="card"><p class="card-title">Your earnings from ${name}</p>
+      <div class="row"><span class="row-label">Revenue (7% of net)</span><span class="row-val">$${wRev.toFixed(2)}</span></div>
+      <div class="row"><span class="row-label">Their total pay</span><span class="row-val" style="color:#e74c3c;">-$${totalPay.toFixed(2)}</span></div>
+      <div class="row"><span class="row-label">Your net from ${name}</span><span class="row-val" style="color:#22c55e;">$${wYours.toFixed(2)}</span></div>
+    </div>`:''}
+  `;
+}
+
+function renderLeaderboard(){
+  const ew=getChatterWeek('ebok').filter(d=>d.data);
+  const jw=getChatterWeek('jericho').filter(d=>d.data);
+  const eg=ew.reduce((s,d)=>s+d.data.gross,0);
+  const jg=jw.reduce((s,d)=>s+d.data.gross,0);
+  const eGold=ew.filter(d=>{const t=getTier(d.data.gross);return t&&(t.key==='gold'||t.key==='elite');}).length;
+  const jGold=jw.filter(d=>{const t=getTier(d.data.gross);return t&&(t.key==='gold'||t.key==='elite');}).length;
+  const eBronze=ew.some(d=>{const t=getTier(d.data.gross);return!t||t.key==='bronze';});
+  const jBronze=jw.some(d=>{const t=getTier(d.data.gross);return!t||t.key==='bronze';});
+  let ep=0,jp=0;
+  if(eg>jg)ep+=2;else if(jg>eg)jp+=2;else{ep+=1;jp+=1;}
+  if(eGold>jGold)ep+=2;else if(jGold>eGold)jp+=2;else{ep+=1;jp+=1;}
+  const chatters=[
+    {name:'Ebok',initials:'EB',gross:eg,goldDays:eGold,pts:ep,qual:!eBronze,bg:'#ddeeff',color:'#1a5fa5'},
+    {name:'Jericho',initials:'JR',gross:jg,goldDays:jGold,pts:jp,qual:!jBronze,bg:'#fff3d6',color:'#8a5e00'}
+  ].sort((a,b)=>b.pts-a.pts||b.gross-a.gross);
+
+  const cNet=(eg+jg)*0.8;
+  const teamTarget=21000;
+  const teamPct=Math.min(100,Math.round((cNet/teamTarget)*100));
+  const teamHit=cNet>=teamTarget;
+  const bothDisq=!chatters[0].qual&&!chatters[1].qual;
+
+  document.getElementById('view-leaderboard').innerHTML=`
+    <div class="card">
+      <p class="card-title">This week's standings — $15 prize</p>
+      ${chatters.map((c,i)=>`<div class="lb-row">
+        <span class="lb-rank ${i===0?'first'}">${i+1}</span>
+        <div class="avatar" style="background:${c.bg};color:${c.color};width:34px;height:34px;font-size:12px;">${c.initials}</div>
+        <div class="lb-info">
+          <p class="lb-name">${c.name}<span class="qual-pill ${c.qual?'qual-yes':'qual-no'}">${c.qual?'qualified':'has bronze day'}</span></p>
+          <p class="lb-sub">$${Math.round(c.gross).toLocaleString()} gross · ${c.goldDays} Gold/Elite day${c.goldDays!==1?'s':''}</p>
+        </div>
+        <span class="lb-pts">${c.pts}pts</span>
+      </div>`).join('')}
+      <div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;color:#666;">
+        ${bothDisq?'Both disqualified this week — $15 rolls to next week.':'Winner gets $15 on Sunday. Must pass Rule 3 (zero Bronze days).'}
+      </div>
+    </div>
+    <div class="card">
+      <p class="card-title">Leaderboard rule status</p>
+      <div class="row"><span class="row-label">Rule 1 — highest gross</span><span class="row-val">${eg>jg?'Ebok leads':jg>eg?'Jericho leads':'Tied'}</span></div>
+      <div class="row"><span class="row-label">Rule 2 — most Gold/Elite days</span><span class="row-val">${eGold>jGold?'Ebok leads':jGold>eGold?'Jericho leads':'Tied'}</span></div>
+      <div class="row"><span class="row-label">Rule 3 — Ebok zero Bronze days</span><span class="row-val" style="color:${!eBronze?'#22c55e':'#e74c3c'}">${!eBronze?'Qualified':'Disqualified'}</span></div>
+      <div class="row"><span class="row-label">Rule 3 — Jericho zero Bronze days</span><span class="row-val" style="color:${!jBronze?'#22c55e':'#e74c3c'}">${!jBronze?'Qualified':'Disqualified'}</span></div>
+    </div>
+    <div class="card">
+      <p class="card-title">Team bonus — $20 each</p>
+      <div class="team-prog">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+          <span style="color:#666;">Combined net target: $${teamTarget.toLocaleString()}</span>
+          <span style="font-weight:600;color:${teamHit?'#22c55e':'#1a1a1a'}">${teamHit?'$20 each unlocked!':'$'+Math.round(cNet).toLocaleString()+' / $'+teamTarget.toLocaleString()}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${teamPct}%;background:${teamHit?'#22c55e':'#3b82f6'};"></div></div>
+        <p style="font-size:11px;color:#aaa;margin-top:5px;">${teamPct}% there${teamHit?'':' — need $'+Math.round(teamTarget-cNet).toLocaleString()+' more combined net'}</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderOwner(){
+  if(!IS_OWNER){document.getElementById('view-owner').innerHTML='<div class="loading">Owner view not enabled.</div>';return;}
+  const ew=getChatterWeek('ebok').filter(d=>d.data);
+  const jw=getChatterWeek('jericho').filter(d=>d.data);
+  const allCalcs=[...ew,...jw].map(d=>calcDay(d.data.gross));
+  const rev=allCalcs.reduce((s,c)=>s+c.yourRev,0);
+  const pay=allCalcs.reduce((s,c)=>s+c.theirPay,0);
+  const net=rev-pay;
+  const days=Math.max(ew.length,jw.length);
+  const dailyAvg=days?net/days:0;
+  const projected=dailyAvg*30;
+  const on150=projected*PHP>=150000;
+  const on200=projected*PHP>=200000;
+
+  document.getElementById('view-owner').innerHTML=`
+    <div class="stat-grid">
+      <div class="stat"><p class="stat-label">Week revenue</p><p class="stat-val">$${Math.round(rev)}</p><p class="stat-sub">₱${Math.round(rev*PHP).toLocaleString()}</p></div>
+      <div class="stat"><p class="stat-label">Week chatter pay</p><p class="stat-val">$${Math.round(pay)}</p></div>
+      <div class="stat"><p class="stat-label">Week net</p><p class="stat-val">$${Math.round(net)}</p><p class="stat-sub">₱${Math.round(net*PHP).toLocaleString()}</p></div>
+      <div class="stat"><p class="stat-label">Monthly projection</p><p class="stat-val" style="color:${on150?'#22c55e':'#e74c3c'}">₱${Math.round(projected*PHP/1000)}k</p><p class="stat-sub">${on150?'On track':'Below target'}</p></div>
+    </div>
+    <div class="card">
+      <p class="card-title">This week breakdown</p>
+      <div class="row"><span class="row-label">Total revenue (7% of net)</span><span class="row-val">$${rev.toFixed(2)}</span></div>
+      <div class="row"><span class="row-label">Ebok total pay</span><span class="row-val" style="color:#e74c3c;">-$${ew.map(d=>calcDay(d.data.gross).theirPay).reduce((s,v)=>s+v,0).toFixed(2)}</span></div>
+      <div class="row"><span class="row-label">Jericho total pay</span><span class="row-val" style="color:#e74c3c;">-$${jw.map(d=>calcDay(d.data.gross).theirPay).reduce((s,v)=>s+v,0).toFixed(2)}</span></div>
+      <div class="row"><span class="row-label">Your net this week</span><span class="row-val" style="color:#22c55e;">$${net.toFixed(2)} (₱${Math.round(net*PHP).toLocaleString()})</span></div>
+    </div>
+    <div class="card">
+      <p class="card-title">Monthly projection</p>
+      <div class="row"><span class="row-label">Daily avg net (${days} days logged)</span><span class="row-val">$${dailyAvg.toFixed(2)}/day</span></div>
+      <div class="row"><span class="row-label">Projected monthly</span><span class="row-val">$${Math.round(projected).toLocaleString()} (₱${Math.round(projected*PHP).toLocaleString()})</span></div>
+      <div class="row"><span class="row-label">vs ₱150k target</span><span class="row-val" style="color:${on150?'#22c55e':'#e74c3c'}">${on150?'On track':'₱'+Math.round(150000-projected*PHP).toLocaleString()+' short'}</span></div>
+      <div class="row"><span class="row-label">vs ₱200k target</span><span class="row-val" style="color:${on200?'#22c55e':'#e74c3c'}">${on200?'On track':'₱'+Math.round(200000-projected*PHP).toLocaleString()+' short'}</span></div>
+    </div>
+  `;
+}
+
+function renderAll(){
+  renderOverview();
+  renderChatter('ebok');
+  renderChatter('jericho');
+  renderLeaderboard();
+  renderOwner();
+}
+
+function switchView(v,btn){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  btn.classList.add('active');
+}
+
+loadData();
+setInterval(loadData,300000);
+</script>
+</body>
+</html>
