@@ -137,8 +137,8 @@ async function loadData(){
     document.querySelectorAll('.view').forEach(v=>v.innerHTML='<div class="loading">Syncing with Google Sheets...</div>');
     
     const [ebokByDay,jerichoByDay,combined]=await Promise.all([
-      fetchSheet('Ebok!H2:I8'),
-      fetchSheet('Jericho!H2:I8'),
+      fetchSheet('Ebok!H4:I10'),
+      fetchSheet('Jericho!H4:I10'),
       fetchSheet('Combined!A2:G9')
     ]);
 
