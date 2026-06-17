@@ -61,22 +61,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </head>
 <body>
 <div class="header">
-  <span class="header-title">Chatter Tracker</span>
-  <div style="display:flex;align-items:center;gap:10px;">
-    <span class="sync-badge"><span class="dot"></span><span id="sync-time">Loading...</span></span>
-    <button class="refresh-btn" onclick="loadData()">Refresh</button>
-  </div>
+<span class="header-title">Chatter Tracker</span>
+<div style="display:flex;align-items:center;gap:10px;">
+<span class="sync-badge"><span class="dot"></span><span id="sync-time">Loading...</span></span>
+<button class="refresh-btn" onclick="loadData()">Refresh</button>
+</div>
 </div>
 <div class="nav">
-  <button class="nav-btn active" onclick="switchView('overview',this)">Overview</button>
-  <button class="nav-btn" onclick="switchView('ebok',this)">Ebok</button>
-  <button class="nav-btn" onclick="switchView('jericho',this)">Jericho</button>
-  <button class="nav-btn" onclick="switchView('leaderboard',this)">Leaderboard</button>
-  <button class="nav-btn owner-only" onclick="switchView('owner',this)">My Earnings</button>
+<button class="nav-btn active" onclick="switchView('overview',this)">Overview</button>
+<button class="nav-btn" onclick="switchView('ebok',this)">Ebok</button>
+<button class="nav-btn" onclick="switchView('jericho',this)">Jericho</button>
+<button class="nav-btn" onclick="switchView('seth',this)">Seth</button>
+<button class="nav-btn" onclick="switchView('leaderboard',this)">Leaderboard</button>
+<button class="nav-btn owner-only" onclick="switchView('owner',this)">My Earnings</button>
 </div>
 <div id="view-overview" class="view active"><div class="loading">Loading...</div></div>
 <div id="view-ebok" class="view"><div class="loading">Loading...</div></div>
 <div id="view-jericho" class="view"><div class="loading">Loading...</div></div>
+<div id="view-seth" class="view"><div class="loading">Loading...</div></div>
 <div id="view-leaderboard" class="view"><div class="loading">Loading...</div></div>
 <div id="view-owner" class="view"><div class="loading">Loading...</div></div>
 <script>
@@ -86,204 +88,23 @@ var PHP=57;
 var DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 var IS_OWNER=window.location.hash==='#owner';
 if(!IS_OWNER){document.querySelector('.owner-only').style.display='none';}
-
-function getTier(g){
-  if(g>=2500)return{key:'elite',label:'Elite',name:'Beast',bonus:8,cls:'elite',color:'#22c55e'};
-  if(g>=1875)return{key:'gold',label:'Gold',name:'Hunter',bonus:5,cls:'gold',color:'#f0a500'};
-  if(g>=1250)return{key:'silver',label:'Silver',name:'Closer',bonus:3,cls:'silver',color:'#3b82f6'};
-  if(g>=1000)return{key:'bronze',label:'Bronze',name:'Grinder',bonus:0,cls:'bronze',color:'#aaa'};
-  return null;
-}
-
-function calc(gross){
-  var net=gross*0.8;
-  var tier=getTier(gross);
-  var commission=gross>=1000?net*0.01:0;
-  var hourly=16;
-  var cashBonus=tier?tier.bonus:0;
-  var theirPay=hourly+commission+cashBonus;
-  var yourRev=net*0.07;
-  var yourNet=yourRev-theirPay;
-  return{net:net,tier:tier,commission:commission,hourly:hourly,cashBonus:cashBonus,theirPay:theirPay,yourRev:yourRev,yourNet:yourNet};
-}
-
-var DATA={ebok:{},jericho:{}};
-
-function parseGross(str){
-  if(!str)return 0;
-  var s=str.trim();
-  if(s==='-'||s==='\u2013'||s==='\u2014')return 0;
-  return parseFloat(s.replace(/[$,]/g,''))||0;
-}
-
-function fetchSheet(range){
-  var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent(range)+'?key='+API_KEY;
-  return fetch(url).then(function(r){return r.json();}).then(function(d){return d.values||[];});
-}
-
-function loadData(){
-  document.querySelectorAll('.view').forEach(function(v){v.innerHTML='<div class="loading">Syncing...</div>';});
-  return Promise.all([fetchSheet('Ebok!H4:I10'),fetchSheet('Jericho!H4:I10')]).then(function(results){
-    var ebokByDay=results[0];
-    var jerichoByDay=results[1];
-    DATA={ebok:{},jericho:{}};
-    DAYS.forEach(function(day,i){
-      var eg=parseGross((ebokByDay[i]||[])[0]);
-      var jg=parseGross((jerichoByDay[i]||[])[0]);
-      if(eg>0)DATA.ebok[day]={gross:eg,net:eg*0.8};
-      if(jg>0)DATA.jericho[day]={gross:jg,net:jg*0.8};
-    });
-    document.getElementById('sync-time').textContent='Synced '+new Date().toLocaleTimeString();
-    renderAll();
-  }).catch(function(e){
-    document.querySelectorAll('.view').forEach(function(v){v.innerHTML='<div class="errmsg">Error: '+e.message+'</div>';});
-    document.getElementById('sync-time').textContent='Sync failed';
-  });
-}
-
+var CHATTERS=[{key:'ebok',name:'Ebok',initials:'EB',tab:'Ebok',bg:'#ddeeff',color:'#1a5fa5'},{key:'jericho',name:'Jericho',initials:'JR',tab:'Jericho',bg:'#fff3d6',color:'#8a5e00'},{key:'seth',name:'Seth',initials:'SE',tab:'SETH',bg:'#e6e0ff',color:'#5a3fa5'}];
+var FLOOR=400;var HOURLY=16;
+function getTier(g){if(g>=2500)return{key:'elite',label:'Elite',name:'Beast',bonus:8,cls:'elite',color:'#22c55e'};if(g>=1875)return{key:'gold',label:'Gold',name:'Hunter',bonus:5,cls:'gold',color:'#f0a500'};if(g>=1250)return{key:'silver',label:'Silver',name:'Closer',bonus:3,cls:'silver',color:'#3b82f6'};if(g>=1000)return{key:'bronze',label:'Bronze',name:'Grinder',bonus:0,cls:'bronze',color:'#aaa'};return null;}
+function calc(gross){var net=gross*0.8;var tier=getTier(gross);var belowFloor=gross<FLOOR;var hourly=belowFloor?0:HOURLY;var commission=gross>=1000?net*0.01:0;var cashBonus=tier?tier.bonus:0;var theirPay=hourly+commission+cashBonus;var yourRev=net*0.07;var yourNet=yourRev-theirPay;return{net:net,tier:tier,belowFloor:belowFloor,commission:commission,hourly:hourly,cashBonus:cashBonus,theirPay:theirPay,yourRev:yourRev,yourNet:yourNet};}
+var DATA={};CHATTERS.forEach(function(c){DATA[c.key]={};});
+function parseGross(str){if(!str)return 0;var s=str.trim();if(s==='-'||s==='–'||s==='—')return 0;return parseFloat(s.replace(/[$,]/g,''))||0;}
+function fetchSheet(range){var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent(range)+'?key='+API_KEY;return fetch(url).then(function(r){return r.json();}).then(function(d){return d.values||[];}).catch(function(){return [];});}
+function loadData(){document.querySelectorAll('.view').forEach(function(v){v.innerHTML='<div class="loading">Syncing...</div>';});return Promise.all(CHATTERS.map(function(c){return fetchSheet(c.tab+'!H4:I10');})).then(function(results){CHATTERS.forEach(function(c){DATA[c.key]={};});CHATTERS.forEach(function(c,ci){var byDay=results[ci];DAYS.forEach(function(day,i){var g=parseGross((byDay[i]||[])[0]);if(g>0)DATA[c.key][day]={gross:g,net:g*0.8};});});document.getElementById('sync-time').textContent='Synced '+new Date().toLocaleTimeString();renderAll();}).catch(function(e){document.querySelectorAll('.view').forEach(function(v){v.innerHTML='<div class="errmsg">Error: '+e.message+'</div>';});document.getElementById('sync-time').textContent='Sync failed';});}
 function getWeek(chatter){return DAYS.map(function(d){return{day:d,data:DATA[chatter][d]||null};});}
-
-function bar(label,current,target,bonus,color){
-  var pct=Math.min(100,Math.round(current/target*100));
-  var hit=current>=target;
-  var statusColor=hit?'#22c55e':'#1a1a1a';
-  var statusText=hit?'+$'+bonus+' unlocked!':'$'+Math.round(current).toLocaleString()+' / $'+target.toLocaleString();
-  var fillColor=hit?'#22c55e':color;
-  return '<div class="bar-wrap"><div class="bar-meta"><span style="color:#666;">'+label+' \u2014 $'+target.toLocaleString()+' net</span><span style="font-weight:600;color:'+statusColor+';">'+statusText+'</span></div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+fillColor+';"></div></div></div>';
-}
-
-function renderOverview(){
-  var ew=getWeek('ebok');
-  var jw=getWeek('jericho');
-  var eg=ew.reduce(function(s,d){return s+(d.data?d.data.gross:0);},0);
-  var jg=jw.reduce(function(s,d){return s+(d.data?d.data.gross:0);},0);
-  var cg=eg+jg;
-  var cn=cg*0.8;
-  var eC=ew.filter(function(d){return d.data;}).map(function(d){return calc(d.data.gross);});
-  var jC=jw.filter(function(d){return d.data;}).map(function(d){return calc(d.data.gross);});
-  var allC=eC.concat(jC);
-  var rev=allC.reduce(function(s,c){return s+c.yourRev;},0);
-  var pay=allC.reduce(function(s,c){return s+c.theirPay;},0);
-  var net=rev-pay;
-  var ownerStats=IS_OWNER?'<div class="stat"><p class="stat-label">Your revenue</p><p class="stat-val">$'+Math.round(rev)+'</p></div><div class="stat"><p class="stat-label">Your net</p><p class="stat-val">$'+Math.round(net)+'</p><p class="stat-sub">\u20b1'+Math.round(net*PHP).toLocaleString()+'</p></div>':'';
-  var eTier=eC.length?getTier(eg/eC.length):null;
-  var jTier=jC.length?getTier(jg/jC.length):null;
-  var dayGrid=DAYS.map(function(d){
-    var ed=DATA.ebok[d];var jd=DATA.jericho[d];
-    var g=(ed?ed.gross:0)+(jd?jd.gross:0);
-    var h=ed||jd;var t=h&&g>0?getTier(g/2):null;
-    var bg=t?'background:'+t.color+'20;border-color:'+t.color+'50;':'';
-    var vc=t?'color:'+t.color+';':'color:#bbb;';
-    return '<div class="day-cell" style="'+bg+'"><p class="day-name">'+d.slice(0,3)+'</p><p class="day-val" style="'+vc+'">'+(h&&g>0?'$'+Math.round(g).toLocaleString():'\u2014')+'</p></div>';
-  }).join('');
-  document.getElementById('view-overview').innerHTML='<div class="stat-grid"><div class="stat"><p class="stat-label">Combined gross</p><p class="stat-val">$'+Math.round(cg).toLocaleString()+'</p><p class="stat-sub">This week</p></div><div class="stat"><p class="stat-label">Combined net</p><p class="stat-val">$'+Math.round(cn).toLocaleString()+'</p><p class="stat-sub">This week</p></div>'+ownerStats+'</div><div class="card"><p class="card-title">Week by day</p><div class="day-grid">'+dayGrid+'</div></div><div class="card"><p class="card-title">Chatter snapshot</p><div class="row"><span class="row-label">Ebok \u2014 $'+Math.round(eg).toLocaleString()+' gross</span><span class="row-val">'+(eTier?'<span class="pill '+eTier.cls+'">'+eTier.label+' avg</span>':'\u2014')+'</span></div><div class="row"><span class="row-label">Jericho \u2014 $'+Math.round(jg).toLocaleString()+' gross</span><span class="row-val">'+(jTier?'<span class="pill '+jTier.cls+'">'+jTier.label+' avg</span>':'\u2014')+'</span></div></div>';
-}
-
-function renderChatter(chatter){
-  var isE=chatter==='ebok';
-  var name=isE?'Ebok':'Jericho';
-  var initials=isE?'EB':'JR';
-  var aBg=isE?'#ddeeff':'#fff3d6';
-  var aCol=isE?'#1a5fa5':'#8a5e00';
-  var week=getWeek(chatter);
-  var active=week.filter(function(d){return d.data;});
-  var wG=active.reduce(function(s,d){return s+d.data.gross;},0);
-  var wN=wG*0.8;
-  var calcs=active.map(function(d){var c=calc(d.data.gross);c.day=d.day;return c;});
-  var lT=active.length?getTier(active[active.length-1].data.gross):null;
-  var dCash=calcs.reduce(function(s,c){return s+c.cashBonus;},0);
-  var comm=calcs.reduce(function(s,c){return s+c.commission;},0);
-  var tPay=calcs.reduce(function(s,c){return s+c.theirPay;},0);
-  var wRev=calcs.reduce(function(s,c){return s+c.yourRev;},0);
-  var wYours=calcs.reduce(function(s,c){return s+c.yourNet;},0);
-  var targets=[{label:'Silver week',target:7000,bonus:30,color:'#3b82f6'},{label:'Gold week',target:10500,bonus:50,color:'#f0a500'},{label:'Elite week',target:14000,bonus:75,color:'#22c55e'}];
-  var hT=targets.filter(function(t){return wN>=t.target;});
-  var top=hT[hT.length-1];
-  var bonusRows='';
-  if(top)bonusRows+='<div class="row"><span class="row-label">'+top.label+' bonus</span><span class="row-val" style="color:#22c55e;">+$'+top.bonus+'</span></div>';
-  if(dCash>0)bonusRows+='<div class="row"><span class="row-label">Daily cash bonuses</span><span class="row-val" style="color:#22c55e;">+$'+dCash+'</span></div>';
-  if(comm>0)bonusRows+='<div class="row"><span class="row-label">1% net commission</span><span class="row-val" style="color:#22c55e;">+$'+comm.toFixed(2)+'</span></div>';
-  bonusRows+='<div class="row"><span class="row-label">Base hourly pay</span><span class="row-val">$'+(active.length*16)+'</span></div>';
-  bonusRows+='<div class="row"><span class="row-label">Total earnings this week</span><span class="row-val">$'+tPay.toFixed(2)+'</span></div>';
-  var dayRows=active.length?active.map(function(d){
-    var c=calc(d.data.gross);var t=c.tier;
-    var tpill=t?'<span class="pill '+t.cls+'">'+t.label+'</span>':'<span style="font-size:11px;color:#ccc;">Below floor</span>';
-    var btext=c.cashBonus>0?'<span style="font-size:12px;color:#22c55e;">+$'+c.cashBonus+' bonus</span>':'';
-    return '<div class="row"><span class="row-label">'+d.day+'</span>'+tpill+'<span class="row-val">$'+Math.round(d.data.gross).toLocaleString()+'</span>'+btext+'</div>';
-  }).join(''):'<p style="font-size:13px;color:#aaa;padding:8px 0;">No days logged yet.</p>';
-  var ownerCard=IS_OWNER?'<div class="card"><p class="card-title">Your earnings from '+name+'</p><div class="row"><span class="row-label">Revenue (7% of net)</span><span class="row-val">$'+wRev.toFixed(2)+'</span></div><div class="row"><span class="row-label">Their pay</span><span class="row-val" style="color:#e74c3c;">-$'+tPay.toFixed(2)+'</span></div><div class="row"><span class="row-label">Your net</span><span class="row-val" style="color:#22c55e;">$'+wYours.toFixed(2)+'</span></div></div>':'';
-  var badgeHtml=lT?'<span class="pill '+lT.cls+'">'+lT.label+'</span>':'';
-  document.getElementById('view-'+chatter).innerHTML='<div class="ch-header"><div class="avatar" style="background:'+aBg+';color:'+aCol+';">'+initials+'</div><div style="flex:1;"><p style="font-size:16px;font-weight:700;">'+name+'</p><p style="font-size:12px;color:#888;">'+(lT?lT.label+' \u2014 '+lT.name:'No data yet')+'</p></div>'+badgeHtml+'</div><div class="stat-grid"><div class="stat"><p class="stat-label">Week gross</p><p class="stat-val">$'+Math.round(wG).toLocaleString()+'</p></div><div class="stat"><p class="stat-label">Week net</p><p class="stat-val">$'+Math.round(wN).toLocaleString()+'</p></div><div class="stat"><p class="stat-label">Avg gross/day</p><p class="stat-val">$'+(active.length?Math.round(wG/active.length).toLocaleString():'\u2014')+'</p></div><div class="stat"><p class="stat-label">Days logged</p><p class="stat-val">'+active.length+'</p></div></div><div class="card"><p class="card-title">Weekly bonus progress</p>'+targets.map(function(t){return bar(t.label,wN,t.target,t.bonus,t.color);}).join('')+'</div><div class="card"><p class="card-title">Day breakdown</p>'+dayRows+'</div><div class="card"><p class="card-title">Earnings this week</p>'+bonusRows+'</div>'+ownerCard;
-}
-
-function renderLeaderboard(){
-  var ew=getWeek('ebok').filter(function(d){return d.data;});
-  var jw=getWeek('jericho').filter(function(d){return d.data;});
-  var eg=ew.reduce(function(s,d){return s+d.data.gross;},0);
-  var jg=jw.reduce(function(s,d){return s+d.data.gross;},0);
-  var eGold=ew.filter(function(d){var t=getTier(d.data.gross);return t&&(t.key==='gold'||t.key==='elite');}).length;
-  var jGold=jw.filter(function(d){var t=getTier(d.data.gross);return t&&(t.key==='gold'||t.key==='elite');}).length;
-  var eB=ew.some(function(d){var t=getTier(d.data.gross);return!t||t.key==='bronze';});
-  var jB=jw.some(function(d){var t=getTier(d.data.gross);return!t||t.key==='bronze';});
-  var ep=0,jp=0;
-  if(eg>jg)ep+=2;else if(jg>eg)jp+=2;else{ep+=1;jp+=1;}
-  if(eGold>jGold)ep+=2;else if(jGold>eGold)jp+=2;else{ep+=1;jp+=1;}
-  var chatters=[
-    {name:'Ebok',initials:'EB',gross:eg,goldDays:eGold,pts:ep,qual:!eB,bg:'#ddeeff',color:'#1a5fa5'},
-    {name:'Jericho',initials:'JR',gross:jg,goldDays:jGold,pts:jp,qual:!jB,bg:'#fff3d6',color:'#8a5e00'}
-  ].sort(function(a,b){return b.pts-a.pts||b.gross-a.gross;});
-  var lbRows=chatters.map(function(c,i){
-    var rankCls=i===0?'lb-rank first':'lb-rank';
-    var qcls=c.qual?'qpill qyes':'qpill qno';
-    var qtext=c.qual?'qualified':'bronze day';
-    return '<div class="lb-row"><span class="'+rankCls+'">'+(i+1)+'</span><div class="avatar" style="background:'+c.bg+';color:'+c.color+';width:34px;height:34px;font-size:12px;">'+c.initials+'</div><div class="lb-info"><p class="lb-name">'+c.name+'<span class="'+qcls+'">'+qtext+'</span></p><p class="lb-sub">$'+Math.round(c.gross).toLocaleString()+' gross \u00b7 '+c.goldDays+' Gold/Elite days</p></div><span class="lb-pts">'+c.pts+'pts</span></div>';
-  }).join('');
-  var cNet=(eg+jg)*0.8;
-  var tT=21000;
-  var tPct=Math.min(100,Math.round(cNet/tT*100));
-  var tHit=cNet>=tT;
-  var note=(chatters[0].qual||chatters[1].qual)?'Winner gets $15 Sunday. Zero bronze days required.':'Both disqualified \u2014 $15 rolls to next week.';
-  var r1=eg>jg?'Ebok leads':jg>eg?'Jericho leads':'Tied';
-  var r2=eGold>jGold?'Ebok leads':jGold>eGold?'Jericho leads':'Tied';
-  var e3col=!eB?'#22c55e':'#e74c3c';var e3txt=!eB?'Qualified':'Disqualified';
-  var j3col=!jB?'#22c55e':'#e74c3c';var j3txt=!jB?'Qualified':'Disqualified';
-  var tCol=tHit?'#22c55e':'#1a1a1a';
-  var tTxt=tHit?'$20 each unlocked!':'$'+Math.round(cNet).toLocaleString()+' / $'+tT.toLocaleString();
-  var tFill=tHit?'#22c55e':'#3b82f6';
-  document.getElementById('view-leaderboard').innerHTML='<div class="card"><p class="card-title">This week \u2014 $15 prize</p>'+lbRows+'<div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;color:#666;">'+note+'</div></div><div class="card"><p class="card-title">Rule status</p><div class="row"><span class="row-label">Rule 1 \u2014 highest gross</span><span class="row-val">'+r1+'</span></div><div class="row"><span class="row-label">Rule 2 \u2014 most Gold/Elite days</span><span class="row-val">'+r2+'</span></div><div class="row"><span class="row-label">Ebok Rule 3</span><span class="row-val" style="color:'+e3col+';">'+e3txt+'</span></div><div class="row"><span class="row-label">Jericho Rule 3</span><span class="row-val" style="color:'+j3col+';">'+j3txt+'</span></div></div><div class="card"><p class="card-title">Team bonus \u2014 $20 each</p><div class="tprog"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span style="color:#666;">Combined net target: $'+tT.toLocaleString()+'</span><span style="font-weight:600;color:'+tCol+';">'+tTxt+'</span></div><div class="bar-track"><div class="bar-fill" style="width:'+tPct+'%;background:'+tFill+';"></div></div><p style="font-size:11px;color:#aaa;margin-top:5px;">'+tPct+'% there</p></div></div>';
-}
-
-function renderOwner(){
-  if(!IS_OWNER){document.getElementById('view-owner').innerHTML='<div class="loading">Add #owner to URL to see earnings.</div>';return;}
-  var ew=getWeek('ebok').filter(function(d){return d.data;});
-  var jw=getWeek('jericho').filter(function(d){return d.data;});
-  var allC=ew.concat(jw).map(function(d){return calc(d.data.gross);});
-  var rev=allC.reduce(function(s,c){return s+c.yourRev;},0);
-  var pay=allC.reduce(function(s,c){return s+c.theirPay;},0);
-  var net=rev-pay;
-  var days=Math.max(ew.length,jw.length);
-  var daily=days?net/days:0;
-  var proj=daily*30;
-  var o150=proj*PHP>=150000;
-  var o200=proj*PHP>=200000;
-  var c150=o150?'#22c55e':'#e74c3c';var t150=o150?'On track':'\u20b1'+Math.round(150000-proj*PHP).toLocaleString()+' short';
-  var c200=o200?'#22c55e':'#e74c3c';var t200=o200?'On track':'\u20b1'+Math.round(200000-proj*PHP).toLocaleString()+' short';
-  var ePay=ew.map(function(d){return calc(d.data.gross).theirPay;}).reduce(function(s,v){return s+v;},0);
-  var jPay=jw.map(function(d){return calc(d.data.gross).theirPay;}).reduce(function(s,v){return s+v;},0);
-  document.getElementById('view-owner').innerHTML='<div class="stat-grid"><div class="stat"><p class="stat-label">Week revenue</p><p class="stat-val">$'+Math.round(rev)+'</p></div><div class="stat"><p class="stat-label">Week chatter pay</p><p class="stat-val">$'+Math.round(pay)+'</p></div><div class="stat"><p class="stat-label">Week net</p><p class="stat-val">$'+Math.round(net)+'</p><p class="stat-sub">\u20b1'+Math.round(net*PHP).toLocaleString()+'</p></div><div class="stat"><p class="stat-label">Monthly projection</p><p class="stat-val" style="color:'+(o150?'#22c55e':'#e74c3c')+'">\u20b1'+Math.round(proj*PHP/1000)+'k</p></div></div><div class="card"><p class="card-title">Week breakdown</p><div class="row"><span class="row-label">Revenue (7% of net)</span><span class="row-val">$'+rev.toFixed(2)+'</span></div><div class="row"><span class="row-label">Ebok pay</span><span class="row-val" style="color:#e74c3c;">-$'+ePay.toFixed(2)+'</span></div><div class="row"><span class="row-label">Jericho pay</span><span class="row-val" style="color:#e74c3c;">-$'+jPay.toFixed(2)+'</span></div><div class="row"><span class="row-label">Your net</span><span class="row-val" style="color:#22c55e;">$'+net.toFixed(2)+' (\u20b1'+Math.round(net*PHP).toLocaleString()+')</span></div></div><div class="card"><p class="card-title">Monthly projection</p><div class="row"><span class="row-label">Daily avg ('+days+' days)</span><span class="row-val">$'+daily.toFixed(2)+'/day</span></div><div class="row"><span class="row-label">Projected</span><span class="row-val">$'+Math.round(proj).toLocaleString()+' (\u20b1'+Math.round(proj*PHP).toLocaleString()+')</span></div><div class="row"><span class="row-label">vs \u20b1150k</span><span class="row-val" style="color:'+c150+';">'+t150+'</span></div><div class="row"><span class="row-label">vs \u20b1200k</span><span class="row-val" style="color:'+c200+';">'+t200+'</span></div></div>';
-}
-
-function renderAll(){renderOverview();renderChatter('ebok');renderChatter('jericho');renderLeaderboard();renderOwner();}
-
-function switchView(v,btn){
-  document.querySelectorAll('.view').forEach(function(el){el.classList.remove('active');});
-  document.querySelectorAll('.nav-btn').forEach(function(el){el.classList.remove('active');});
-  document.getElementById('view-'+v).classList.add('active');
-  btn.classList.add('active');
-}
-
-loadData();
-setInterval(loadData,300000);
+function bar(label,current,target,bonus,color){var pct=Math.min(100,Math.round(current/target*100));var hit=current>=target;var statusColor=hit?'#22c55e':'#1a1a1a';var statusText=hit?'+$'+bonus+' unlocked!':'$'+Math.round(current).toLocaleString()+' / $'+target.toLocaleString();var fillColor=hit?'#22c55e':color;return '<div class="bar-wrap"><div class="bar-meta"><span style="color:#666;">'+label+' — $'+target.toLocaleString()+' net</span><span style="font-weight:600;color:'+statusColor+';">'+statusText+'</span></div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+fillColor+';"></div></div></div>';}
+function renderOverview(){var totalsG={},tierByChatter={};var cg=0;CHATTERS.forEach(function(c){var w=getWeek(c.key);var g=w.reduce(function(s,d){return s+(d.data?d.data.gross:0);},0);totalsG[c.key]=g;cg+=g;var paidDays=w.filter(function(d){return d.data;});tierByChatter[c.key]=paidDays.length?getTier(g/paidDays.length):null;});var cn=cg*0.8;var allC=[];CHATTERS.forEach(function(c){getWeek(c.key).filter(function(d){return d.data;}).forEach(function(d){allC.push(calc(d.data.gross));});});var rev=allC.reduce(function(s,c){return s+c.yourRev;},0);var pay=allC.reduce(function(s,c){return s+c.theirPay;},0);var net=rev-pay;var ownerStats=IS_OWNER?'<div class="stat"><p class="stat-label">Your revenue</p><p class="stat-val">$'+Math.round(rev)+'</p></div><div class="stat"><p class="stat-label">Your net</p><p class="stat-val">$'+Math.round(net)+'</p><p class="stat-sub">₱'+Math.round(net*PHP).toLocaleString()+'</p></div>':'';var dayGrid=DAYS.map(function(d){var g=0,active=0;CHATTERS.forEach(function(c){if(DATA[c.key][d]){g+=DATA[c.key][d].gross;active++;}});var t=active>0&&g>0?getTier(g/active):null;var bg=t?'background:'+t.color+'20;border-color:'+t.color+'50;':'';var vc=t?'color:'+t.color+';':'color:#bbb;';return '<div class="day-cell" style="'+bg+'"><p class="day-name">'+d.slice(0,3)+'</p><p class="day-val" style="'+vc+'">'+(active>0&&g>0?'$'+Math.round(g).toLocaleString():'—')+'</p></div>';}).join('');var snapRows=CHATTERS.map(function(c){var t=tierByChatter[c.key];return '<div class="row"><span class="row-label">'+c.name+' — $'+Math.round(totalsG[c.key]).toLocaleString()+' gross</span><span class="row-val">'+(t?'<span class="pill '+t.cls+'">'+t.label+' avg</span>':'—')+'</span></div>';}).join('');document.getElementById('view-overview').innerHTML='<div class="stat-grid"><div class="stat"><p class="stat-label">Combined gross</p><p class="stat-val">$'+Math.round(cg).toLocaleString()+'</p><p class="stat-sub">This week</p></div><div class="stat"><p class="stat-label">Combined net</p><p class="stat-val">$'+Math.round(cn).toLocaleString()+'</p><p class="stat-sub">This week</p></div>'+ownerStats+'</div><div class="card"><p class="card-title">Week by day</p><div class="day-grid">'+dayGrid+'</div></div><div class="card"><p class="card-title">Chatter snapshot</p>'+snapRows+'</div>';}
+function renderChatter(chatter){var cfg=CHATTERS.filter(function(c){return c.key===chatter;})[0];var name=cfg.name;var initials=cfg.initials;var aBg=cfg.bg;var aCol=cfg.color;var week=getWeek(chatter);var active=week.filter(function(d){return d.data;});var wG=active.reduce(function(s,d){return s+d.data.gross;},0);var wN=wG*0.8;var calcs=active.map(function(d){var c=calc(d.data.gross);c.day=d.day;return c;});var lT=active.length?getTier(active[active.length-1].data.gross):null;var dCash=calcs.reduce(function(s,c){return s+c.cashBonus;},0);var comm=calcs.reduce(function(s,c){return s+c.commission;},0);var tPay=calcs.reduce(function(s,c){return s+c.theirPay;},0);var wRev=calcs.reduce(function(s,c){return s+c.yourRev;},0);var wYours=calcs.reduce(function(s,c){return s+c.yourNet;},0);var paidDayCount=calcs.filter(function(c){return!c.belowFloor;}).length;var targets=[{label:'Silver week',target:7000,bonus:30,color:'#3b82f6'},{label:'Gold week',target:10500,bonus:50,color:'#f0a500'},{label:'Elite week',target:14000,bonus:75,color:'#22c55e'}];var hT=targets.filter(function(t){return wN>=t.target;});var top=hT[hT.length-1];var bonusRows='';if(top)bonusRows+='<div class="row"><span class="row-label">'+top.label+' bonus</span><span class="row-val" style="color:#22c55e;">+$'+top.bonus+'</span></div>';if(dCash>0)bonusRows+='<div class="row"><span class="row-label">Daily cash bonuses</span><span class="row-val" style="color:#22c55e;">+$'+dCash+'</span></div>';if(comm>0)bonusRows+='<div class="row"><span class="row-label">1% net commission</span><span class="row-val" style="color:#22c55e;">+$'+comm.toFixed(2)+'</span></div>';bonusRows+='<div class="row"><span class="row-label">Base hourly pay ('+paidDayCount+' paid days)</span><span class="row-val">$'+(paidDayCount*HOURLY)+'</span></div>';bonusRows+='<div class="row"><span class="row-label">Total earnings this week</span><span class="row-val">$'+tPay.toFixed(2)+'</span></div>';var dayRows=active.length?active.map(function(d){var c=calc(d.data.gross);var t=c.tier;var tpill=c.belowFloor?'<span style="font-size:11px;color:#c0392b;">Below floor — unpaid</span>':(t?'<span class="pill '+t.cls+'">'+t.label+'</span>':'<span style="font-size:11px;color:#999;">$2/hr band</span>');var btext=c.cashBonus>0?'<span style="font-size:12px;color:#22c55e;">+$'+c.cashBonus+' bonus</span>':'';return '<div class="row"><span class="row-label">'+d.day+'</span>'+tpill+'<span class="row-val">$'+Math.round(d.data.gross).toLocaleString()+'</span>'+btext+'</div>';}).join(''):'<p style="font-size:13px;color:#aaa;padding:8px 0;">No days logged yet.</p>';var ownerCard=IS_OWNER?'<div class="card"><p class="card-title">Your earnings from '+name+'</p><div class="row"><span class="row-label">Revenue (7% of net)</span><span class="row-val">$'+wRev.toFixed(2)+'</span></div><div class="row"><span class="row-label">Their pay</span><span class="row-val" style="color:#e74c3c;">-$'+tPay.toFixed(2)+'</span></div><div class="row"><span class="row-label">Your net</span><span class="row-val" style="color:#22c55e;">$'+wYours.toFixed(2)+'</span></div></div>':'';var badgeHtml=lT?'<span class="pill '+lT.cls+'">'+lT.label+'</span>':'';document.getElementById('view-'+chatter).innerHTML='<div class="ch-header"><div class="avatar" style="background:'+aBg+';color:'+aCol+';">'+initials+'</div><div style="flex:1;"><p style="font-size:16px;font-weight:700;">'+name+'</p><p style="font-size:12px;color:#888;">'+(lT?lT.label+' — '+lT.name:'No data yet')+'</p></div>'+badgeHtml+'</div><div class="stat-grid"><div class="stat"><p class="stat-label">Week gross</p><p class="stat-val">$'+Math.round(wG).toLocaleString()+'</p></div><div class="stat"><p class="stat-label">Week net</p><p class="stat-val">$'+Math.round(wN).toLocaleString()+'</p></div><div class="stat"><p class="stat-label">Avg gross/day</p><p class="stat-val">$'+(active.length?Math.round(wG/active.length).toLocaleString():'—')+'</p></div><div class="stat"><p class="stat-label">Days logged</p><p class="stat-val">'+active.length+'</p></div></div><div class="card"><p class="card-title">Weekly bonus progress</p>'+targets.map(function(t){return bar(t.label,wN,t.target,t.bonus,t.color);}).join('')+'</div><div class="card"><p class="card-title">Day breakdown</p>'+dayRows+'</div><div class="card"><p class="card-title">Earnings this week</p>'+bonusRows+'</div>'+ownerCard;}
+function renderLeaderboard(){var rows=CHATTERS.map(function(c){var w=getWeek(c.key).filter(function(d){return d.data;});var g=w.reduce(function(s,d){return s+d.data.gross;},0);var goldDays=w.filter(function(d){var t=getTier(d.data.gross);return t&&(t.key==='gold'||t.key==='elite');}).length;var hasBronzeOrBelow=w.some(function(d){var t=getTier(d.data.gross);return!t||t.key==='bronze';});return{name:c.name,initials:c.initials,gross:g,goldDays:goldDays,qual:!hasBronzeOrBelow,bg:c.bg,color:c.color,pts:0,logged:w.length};});var maxG=Math.max.apply(null,rows.map(function(r){return r.gross;}));var maxGold=Math.max.apply(null,rows.map(function(r){return r.goldDays;}));var topG=rows.filter(function(r){return r.gross===maxG&&maxG>0;});var topGold=rows.filter(function(r){return r.goldDays===maxGold&&maxGold>0;});rows.forEach(function(r){if(maxG>0){if(topG.length===1&&r.gross===maxG)r.pts+=2;else if(topG.length>1&&r.gross===maxG)r.pts+=1;}if(maxGold>0){if(topGold.length===1&&r.goldDays===maxGold)r.pts+=2;else if(topGold.length>1&&r.goldDays===maxGold)r.pts+=1;}});rows.sort(function(a,b){return b.pts-a.pts||b.gross-a.gross;});var lbRows=rows.map(function(c,i){var rankCls=i===0?'lb-rank first':'lb-rank';var qcls=c.qual?'qpill qyes':'qpill qno';var qtext=c.qual?'qualified':'bronze/below day';return '<div class="lb-row"><span class="'+rankCls+'">'+(i+1)+'</span><div class="avatar" style="background:'+c.bg+';color:'+c.color+';width:34px;height:34px;font-size:12px;">'+c.initials+'</div><div class="lb-info"><p class="lb-name">'+c.name+'<span class="'+qcls+'">'+qtext+'</span></p><p class="lb-sub">$'+Math.round(c.gross).toLocaleString()+' gross · '+c.goldDays+' Gold/Elite days</p></div><span class="lb-pts">'+c.pts+'pts</span></div>';}).join('');var anyQual=rows.some(function(r){return r.qual;});var note=anyQual?'Winner gets $15 Sunday. Zero bronze/below-floor days required.':'All disqualified — $15 rolls to next week.';var cg=rows.reduce(function(s,r){return s+r.gross;},0);var cNet=cg*0.8;var tT=21000;var tPct=Math.min(100,Math.round(cNet/tT*100));var tHit=cNet>=tT;var tCol=tHit?'#22c55e':'#1a1a1a';var tTxt=tHit?'$20 each unlocked!':'$'+Math.round(cNet).toLocaleString()+' / $'+tT.toLocaleString();var tFill=tHit?'#22c55e':'#3b82f6';var ruleRows=rows.map(function(c){var col=c.qual?'#22c55e':'#e74c3c';var txt=c.qual?'Qualified':'Disqualified';return '<div class="row"><span class="row-label">'+c.name+' — no bronze/below</span><span class="row-val" style="color:'+col+';">'+txt+'</span></div>';}).join('');document.getElementById('view-leaderboard').innerHTML='<div class="card"><p class="card-title">This week — $15 prize</p>'+lbRows+'<div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;color:#666;">'+note+'</div></div><div class="card"><p class="card-title">Qualification status</p>'+ruleRows+'</div><div class="card"><p class="card-title">Team bonus — $20 each</p><div class="tprog"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span style="color:#666;">Combined net target: $'+tT.toLocaleString()+'</span><span style="font-weight:600;color:'+tCol+';">'+tTxt+'</span></div><div class="bar-track"><div class="bar-fill" style="width:'+tPct+'%;background:'+tFill+';"></div></div><p style="font-size:11px;color:#aaa;margin-top:5px;">'+tPct+'% there</p></div></div>';}
+function renderOwner(){if(!IS_OWNER){document.getElementById('view-owner').innerHTML='<div class="loading">Add #owner to URL to see earnings.</div>';return;}var allC=[];var maxDays=0;var payByChatter={};CHATTERS.forEach(function(c){var w=getWeek(c.key).filter(function(d){return d.data;});maxDays=Math.max(maxDays,w.length);var p=0;w.forEach(function(d){var cc=calc(d.data.gross);allC.push(cc);p+=cc.theirPay;});payByChatter[c.key]={name:c.name,pay:p};});var rev=allC.reduce(function(s,c){return s+c.yourRev;},0);var pay=allC.reduce(function(s,c){return s+c.theirPay;},0);var net=rev-pay;var days=maxDays;var daily=days?net/days:0;var proj=daily*30;var o150=proj*PHP>=150000;var o200=proj*PHP>=200000;var c150=o150?'#22c55e':'#e74c3c';var t150=o150?'On track':'₱'+Math.round(150000-proj*PHP).toLocaleString()+' short';var c200=o200?'#22c55e':'#e74c3c';var t200=o200?'On track':'₱'+Math.round(200000-proj*PHP).toLocaleString()+' short';var payRows=CHATTERS.map(function(c){return '<div class="row"><span class="row-label">'+payByChatter[c.key].name+' pay</span><span class="row-val" style="color:#e74c3c;">-$'+payByChatter[c.key].pay.toFixed(2)+'</span></div>';}).join('');document.getElementById('view-owner').innerHTML='<div class="stat-grid"><div class="stat"><p class="stat-label">Week revenue</p><p class="stat-val">$'+Math.round(rev)+'</p></div><div class="stat"><p class="stat-label">Week chatter pay</p><p class="stat-val">$'+Math.round(pay)+'</p></div><div class="stat"><p class="stat-label">Week net</p><p class="stat-val">$'+Math.round(net)+'</p><p class="stat-sub">₱'+Math.round(net*PHP).toLocaleString()+'</p></div><div class="stat"><p class="stat-label">Monthly projection</p><p class="stat-val" style="color:'+(o150?'#22c55e':'#e74c3c')+'">₱'+Math.round(proj*PHP/1000)+'k</p></div></div><div class="card"><p class="card-title">Week breakdown</p><div class="row"><span class="row-label">Revenue (7% of net)</span><span class="row-val">$'+rev.toFixed(2)+'</span></div>'+payRows+'<div class="row"><span class="row-label">Your net</span><span class="row-val" style="color:#22c55e;">$'+net.toFixed(2)+' (₱'+Math.round(net*PHP).toLocaleString()+')</span></div></div><div class="card"><p class="card-title">Monthly projection</p><div class="row"><span class="row-label">Daily avg ('+days+' days)</span><span class="row-val">$'+daily.toFixed(2)+'/day</span></div><div class="row"><span class="row-label">Projected</span><span class="row-val">$'+Math.round(proj).toLocaleString()+' (₱'+Math.round(proj*PHP).toLocaleString()+')</span></div><div class="row"><span class="row-label">vs ₱150k</span><span class="row-val" style="color:'+c150+';">'+t150+'</span></div><div class="row"><span class="row-label">vs ₱200k</span><span class="row-val" style="color:'+c200+';">'+t200+'</span></div></div>';}
+function renderAll(){renderOverview();CHATTERS.forEach(function(c){renderChatter(c.key);});renderLeaderboard();renderOwner();}
+function switchView(v,btn){document.querySelectorAll('.view').forEach(function(el){el.classList.remove('active');});document.querySelectorAll('.nav-btn').forEach(function(el){el.classList.remove('active');});document.getElementById('view-'+v).classList.add('active');btn.classList.add('active');}
+loadData();setInterval(loadData,300000);
 </script>
 </body>
 </html>
