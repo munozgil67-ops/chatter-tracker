@@ -71,14 +71,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <button class="nav-btn active" onclick="switchView('overview',this)">Overview</button>
 <button class="nav-btn" onclick="switchView('ebok',this)">Ebok</button>
 <button class="nav-btn" onclick="switchView('jericho',this)">Jericho</button>
-<button class="nav-btn" onclick="switchView('seth',this)">Seth</button>
+<button class="nav-btn" onclick="switchView('sean',this)">Sean</button>
 <button class="nav-btn" onclick="switchView('leaderboard',this)">Leaderboard</button>
 <button class="nav-btn owner-only" onclick="switchView('owner',this)">My Earnings</button>
 </div>
 <div id="view-overview" class="view active"><div class="loading">Loading...</div></div>
 <div id="view-ebok" class="view"><div class="loading">Loading...</div></div>
 <div id="view-jericho" class="view"><div class="loading">Loading...</div></div>
-<div id="view-seth" class="view"><div class="loading">Loading...</div></div>
+<div id="view-sean" class="view"><div class="loading">Loading...</div></div>
 <div id="view-leaderboard" class="view"><div class="loading">Loading...</div></div>
 <div id="view-owner" class="view"><div class="loading">Loading...</div></div>
 <script>
@@ -88,7 +88,7 @@ var PHP=57;
 var DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 var IS_OWNER=window.location.hash==='#owner';
 if(!IS_OWNER){document.querySelector('.owner-only').style.display='none';}
-var CHATTERS=[{key:'ebok',name:'Ebok',initials:'EB',tab:'Ebok',bg:'#ddeeff',color:'#1a5fa5'},{key:'jericho',name:'Jericho',initials:'JR',tab:'Jericho',bg:'#fff3d6',color:'#8a5e00'},{key:'seth',name:'Seth',initials:'SE',tab:'SETH',bg:'#e6e0ff',color:'#5a3fa5'}];
+var CHATTERS=[{key:'ebok',name:'Ebok',initials:'EB',tab:'Ebok',bg:'#ddeeff',color:'#1a5fa5'},{key:'jericho',name:'Jericho',initials:'JR',tab:'Jericho',bg:'#fff3d6',color:'#8a5e00'},{key:'sean',name:'Sean',initials:'SE',tab:'Sean',bg:'#e6e0ff',color:'#5a3fa5'}];
 var FLOOR=400;var HOURLY=16;
 function getTier(g){if(g>=2500)return{key:'elite',label:'Elite',name:'Beast',bonus:8,cls:'elite',color:'#22c55e'};if(g>=1875)return{key:'gold',label:'Gold',name:'Hunter',bonus:5,cls:'gold',color:'#f0a500'};if(g>=1250)return{key:'silver',label:'Silver',name:'Closer',bonus:3,cls:'silver',color:'#3b82f6'};if(g>=1000)return{key:'bronze',label:'Bronze',name:'Grinder',bonus:0,cls:'bronze',color:'#aaa'};return null;}
 function calc(gross){var net=gross*0.8;var tier=getTier(gross);var belowFloor=gross<FLOOR;var hourly=belowFloor?0:HOURLY;var commission=gross>=1000?net*0.01:0;var cashBonus=tier?tier.bonus:0;var theirPay=hourly+commission+cashBonus;var yourRev=net*0.07;var yourNet=yourRev-theirPay;return{net:net,tier:tier,belowFloor:belowFloor,commission:commission,hourly:hourly,cashBonus:cashBonus,theirPay:theirPay,yourRev:yourRev,yourNet:yourNet};}
