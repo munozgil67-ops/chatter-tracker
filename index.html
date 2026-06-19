@@ -57,14 +57,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .day-cell{border-radius:8px;padding:8px 4px;text-align:center;border:1px solid #f0f0f0;background:#fafafa;}
 .day-name{font-size:9px;color:#aaa;margin-bottom:3px;}
 .day-val{font-size:11px;font-weight:600;color:#1a1a1a;}
+.reset-btn{background:#fff;color:#e74c3c;border:1px solid #e74c3c;border-radius:20px;padding:7px 14px;font-size:13px;cursor:pointer;margin-left:4px;}
+.reset-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;}
+.reset-modal.show{display:flex;}
+.reset-box{background:#fff;border-radius:16px;padding:24px;max-width:320px;width:90%;text-align:center;}
+.reset-box h3{font-size:16px;font-weight:700;margin-bottom:8px;}
+.reset-box p{font-size:13px;color:#666;margin-bottom:20px;line-height:1.6;}
+.reset-box-btns{display:flex;gap:10px;}
+.reset-confirm{flex:1;background:#e74c3c;color:#fff;border:none;border-radius:20px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;}
+.reset-cancel{flex:1;background:#f0f0f0;color:#666;border:none;border-radius:20px;padding:10px;font-size:13px;cursor:pointer;}
+.month-badge{font-size:11px;color:#888;background:#f0f0f0;padding:3px 10px;border-radius:20px;margin-left:6px;}
 </style>
 </head>
 <body>
 <div class="header">
-<span class="header-title">Chatter Tracker</span>
+<span class="header-title">Chatter Tracker<span class="month-badge" id="month-badge"></span></span>
 <div style="display:flex;align-items:center;gap:10px;">
 <span class="sync-badge"><span class="dot"></span><span id="sync-time">Loading...</span></span>
-<button class="refresh-btn" onclick="loadData()">Refresh</button>
+<button class="refresh-btn" onclick="loadData()">Refresh</button><button class="reset-btn" onclick="openReset()">New Month</button>
 </div>
 </div>
 <div class="nav">
@@ -104,7 +114,40 @@ function renderLeaderboard(){var rows=CHATTERS.map(function(c){var w=getWeek(c.k
 function renderOwner(){if(!IS_OWNER){document.getElementById('view-owner').innerHTML='<div class="loading">Add #owner to URL to see earnings.</div>';return;}var allC=[];var maxDays=0;var payByChatter={};CHATTERS.forEach(function(c){var w=getWeek(c.key).filter(function(d){return d.data;});maxDays=Math.max(maxDays,w.length);var p=0;w.forEach(function(d){var cc=calc(d.data.gross);allC.push(cc);p+=cc.theirPay;});payByChatter[c.key]={name:c.name,pay:p};});var rev=allC.reduce(function(s,c){return s+c.yourRev;},0);var pay=allC.reduce(function(s,c){return s+c.theirPay;},0);var net=rev-pay;var days=maxDays;var daily=days?net/days:0;var proj=daily*30;var o150=proj*PHP>=150000;var o200=proj*PHP>=200000;var c150=o150?'#22c55e':'#e74c3c';var t150=o150?'On track':'₱'+Math.round(150000-proj*PHP).toLocaleString()+' short';var c200=o200?'#22c55e':'#e74c3c';var t200=o200?'On track':'₱'+Math.round(200000-proj*PHP).toLocaleString()+' short';var payRows=CHATTERS.map(function(c){return '<div class="row"><span class="row-label">'+payByChatter[c.key].name+' pay</span><span class="row-val" style="color:#e74c3c;">-$'+payByChatter[c.key].pay.toFixed(2)+'</span></div>';}).join('');document.getElementById('view-owner').innerHTML='<div class="stat-grid"><div class="stat"><p class="stat-label">Week revenue</p><p class="stat-val">$'+Math.round(rev)+'</p></div><div class="stat"><p class="stat-label">Week chatter pay</p><p class="stat-val">$'+Math.round(pay)+'</p></div><div class="stat"><p class="stat-label">Week net</p><p class="stat-val">$'+Math.round(net)+'</p><p class="stat-sub">₱'+Math.round(net*PHP).toLocaleString()+'</p></div><div class="stat"><p class="stat-label">Monthly projection</p><p class="stat-val" style="color:'+(o150?'#22c55e':'#e74c3c')+'">₱'+Math.round(proj*PHP/1000)+'k</p></div></div><div class="card"><p class="card-title">Week breakdown</p><div class="row"><span class="row-label">Revenue (7% of net)</span><span class="row-val">$'+rev.toFixed(2)+'</span></div>'+payRows+'<div class="row"><span class="row-label">Your net</span><span class="row-val" style="color:#22c55e;">$'+net.toFixed(2)+' (₱'+Math.round(net*PHP).toLocaleString()+')</span></div></div><div class="card"><p class="card-title">Monthly projection</p><div class="row"><span class="row-label">Daily avg ('+days+' days)</span><span class="row-val">$'+daily.toFixed(2)+'/day</span></div><div class="row"><span class="row-label">Projected</span><span class="row-val">$'+Math.round(proj).toLocaleString()+' (₱'+Math.round(proj*PHP).toLocaleString()+')</span></div><div class="row"><span class="row-label">vs ₱150k</span><span class="row-val" style="color:'+c150+';">'+t150+'</span></div><div class="row"><span class="row-label">vs ₱200k</span><span class="row-val" style="color:'+c200+';">'+t200+'</span></div></div>';}
 function renderAll(){renderOverview();CHATTERS.forEach(function(c){renderChatter(c.key);});renderLeaderboard();renderOwner();}
 function switchView(v,btn){document.querySelectorAll('.view').forEach(function(el){el.classList.remove('active');});document.querySelectorAll('.nav-btn').forEach(function(el){el.classList.remove('active');});document.getElementById('view-'+v).classList.add('active');btn.classList.add('active');}
-loadData();setInterval(loadData,300000);
+
+var RESET_KEY='ct_reset_date';
+function getResetDate(){var s=localStorage.getItem(RESET_KEY);return s?new Date(s):null;}
+function openReset(){document.getElementById('reset-modal').classList.add('show');}
+function closeReset(){document.getElementById('reset-modal').classList.remove('show');}
+function confirmReset(){
+  var now=new Date().toISOString();
+  localStorage.setItem(RESET_KEY,now);
+  closeReset();
+  updateMonthBadge();
+  renderAll();
+}
+function updateMonthBadge(){
+  var rd=getResetDate();
+  var badge=document.getElementById('month-badge');
+  if(rd){
+    var opts={month:'short',day:'numeric'};
+    badge.textContent='Since '+rd.toLocaleDateString('en-US',opts);
+  } else {
+    badge.textContent='All time';
+  }
+}
+updateMonthBadge();loadData();setInterval(loadData,300000);
 </script>
+
+<div class="reset-modal" id="reset-modal">
+  <div class="reset-box">
+    <h3>Start new month?</h3>
+    <p>This will reset the tracker to show a fresh start. Your previous data stays saved in the Google Sheet — nothing gets deleted.</p>
+    <div class="reset-box-btns">
+      <button class="reset-cancel" onclick="closeReset()">Cancel</button>
+      <button class="reset-confirm" onclick="confirmReset()">Yes, reset</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
